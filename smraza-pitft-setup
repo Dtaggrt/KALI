@@ -6,7 +6,8 @@ function print_version() {
     echo "Smraza PiTFT setup v1.0"
     echo "About the author:"
     echo "I'm technical director of Smraza, my personal email:singing99@live.com"
-    echo "Designed by Keen"
+    echo "Created 15 Dec. 2016"
+    echo "by Keen"
     exit 1
 }
 
@@ -77,12 +78,13 @@ function ask() {
 
 # update /boot/config.txt with appropriate values
 function update_configtxt() {
-    
+
     if grep -q "smraza-pitft-setup" "/boot/config.txt"; then
         echo "Already have a smraza-pitft-setup section in /boot/config.txt."
         echo "Adding new section, but please run:"
         echo "sudo nano /boot/config.txt"
         echo "...and remove any duplicate sections."
+	exit 1
     fi
 
     if [ "${pitfttype}" == "sma35" ]; then
@@ -90,53 +92,7 @@ function update_configtxt() {
     fi
 
     date=`date`
-
     cat >> /boot/config.txt <<EOF
-
-# --- added by smraza-pitft-setup $date ---
-[pi1]
-device_tree=bcm2708-rpi-b-plus.dtb
-[pi2]
-device_tree=bcm2709-rpi-2-b.dtb
-[all]
-dtparam=spi=on
-dtparam=i2c1=on
-dtparam=i2c_arm=on
-$overlay
-# --- end smraza-pitft-setup $date ---
-EOF
-
-}
-function pi_rotation(){
-
-if [ "${rotation}" !=  "0" ] && [ "${rotation}" !=  "90" ] && [ "${rotation}" !=  "180" ] && [ "${rotation}" !=  "270" ]; then
-	bail "Support only rotation: 0/90/180/270"
-exit 1
-fi
-
-if [ "${rotation}" == "0" ]; then
-	rm -f /boot/config.txt
-        overlay="dtoverlay=waveshare35a,rotate=0,speed=35000000,fps=60"
-fi
-
-if [ "${rotation}" == "90" ]; then
-	rm -f /boot/config.txt
-	overlay="dtoverlay=waveshare35a,rotate=90,speed=35000000,fps=60"
-fi
-
-if [ "${rotation}" == "180" ]; then
-	rm -f /boot/config.txt
-	overlay="dtoverlay=waveshare35a,rotate=180,speed=35000000,fps=60"
-fi
-
-if [ "${rotation}" == "270" ]; then
-	rm  -f /boot/config.txt
-	overlay="dtoverlay=waveshare35a,rotate=270,speed=35000000,fps=60"
-fi
-info PITFT "Rotation success!"
-
-date=`date`
-cat >> /boot/config.txt <<EOF
 # --- added by smraza-pitft-setup $date ---
 [pi1]
 device_tree=bcm2708-rpi-b-plus.dtb
@@ -151,6 +107,22 @@ dtparam=i2c_arm=on
 $overlay
 # --- end smraza-pitft-setup $date ---
 EOF
+}
+
+function pi_rotation(){
+
+if [ "${rotation}" !=  "0" ] && [ "${rotation}" !=  "90" ] && [ "${rotation}" !=  "180" ] && [ "${rotation}" !=  "270" ]; then
+	bail "Support only rotation: 0/90/180/270"
+exit 1
+fi
+sed -i '/dtoverlay=waveshare35a,rotate/'d /boot/config.txt
+sed -i '/end smraza-pitft-setup/'d /boot/config.txt
+date=`date`
+cat >> /boot/config.txt <<EOF
+dtoverlay=waveshare35a,rotate=$rotation,speed=35000000,fps=60
+# --- end smraza-pitft-setup $date ---
+EOF
+info PITFT "Rotation success!"
 info PITFT "Calibration screen..."
 calibration
 echo
@@ -162,62 +134,28 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 fi
 exit 1
 }
-function switch_hdmi(){
-info HDMI "Switch to HDMI..."
-    rm -f /etc/X11/xorg.conf.d/99-fbdev.conf
-    rm -f /etc/X11/xorg.conf.d/99-calibration.conf
-    rm -f /etc/pointercal
-    rm -f /dev/input/touchscreen
-    rm -f /etc/udev/rules.d/95-*.rules
-    rm -f ${target_homedir}/99-fbturbo.conf
-    rm -f ${target_homedir}/99-fbdev.conf
-    rm -f ~/99-fbdev.conf
-    rm -f /etc/modprobe.d/re4son.conf
-    sed -i 's/rootwait fbcon=map:10 fbcon=font:VGA8x8/rootwait/g' "/boot/cmdline.txt"
-    sed -i 's/BLANK_TIME=0/BLANK_TIME=10/g' "/etc/kbd/config"
-    sed -i '/added by smraza-pitft-setup/,/end re4son-pi-tft-setup/d' "/boot/config.txt"
-    sed -i '/added by smraza-pi-tft-setup/,/end re4son-pi-tft-setup/d' "/etc/modules"
-    sed -i '/added by smraza-pi-tft-setup/,/end re4son-pi-tft-setup/d' "${target_homedir}/.profile"
-    info HDMI "Switch success!"
-    echo
-    read -p "Reboot to apply changes? (y/n): " -n 1 -r
-    echo
-
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-       reboot
-    fi
-    exit 0
-}
-function device_tree(){
-cp waveshare35a-overlay.dtb /boot/overlays/
-}
 
 function calibration() {
-
-	if [ "${rotation}" == "0" ]; then
-	rm -f /etc/X11/xorg.conf.d/99-calibration.conf
+rm -f /etc/X11/xorg.conf.d/99-calibration.conf
+if [ "${rotation}" == "0" ]; then
         calib="263 3834 239 3921"
-		dn=0
-	fi
-	if [ "${rotation}" == "90" ]; then
-	rm -f /etc/X11/xorg.conf.d/99-calibration.conf
+	dn=0
+fi
+if [ "${rotation}" == "90" ]; then
         calib="3894 223 254 3808"
-		dn=1
-	fi
-	if [ "${rotation}" == "180" ]; then
-	rm -f /etc/X11/xorg.conf.d/99-calibration.conf
+	dn=1
+fi
+if [ "${rotation}" == "180" ]; then
         calib="3855 253 3926 238"
-		dn=0
-	fi
-	if [ "${rotation}" == "270" ]; then
-	rm  -f /etc/X11/xorg.conf.d/99-calibration.conf
+	dn=0
+fi
+if [ "${rotation}" == "270" ]; then
         calib="242 3918 3848 244"
-		dn=1
-	fi
+	dn=1
+fi
 info PITFT "Calibration success!"
 
 date=`date`
-
 cat > /etc/X11/xorg.conf.d/99-calibration.conf <<EOF
 # --- added by smraza-pitft-setup $date ---
 Section "InputClass"
@@ -229,6 +167,38 @@ EndSection
 # --- end smraza-pitft-setup $date ---
 EOF
 }
+
+function device_tree(){
+cp waveshare35a-overlay.dtb /boot/overlays/
+}
+
+function switch_hdmi(){
+    info HDMI "Switch to HDMI..."
+    rm -f /etc/X11/xorg.conf.d/99-fbdev.conf
+    rm -f /etc/X11/xorg.conf.d/99-calibration.conf
+    rm -f /etc/pointercal
+    rm -f /dev/input/touchscreen
+    rm -f /etc/udev/rules.d/95-*.rules
+    rm -f ${target_homedir}/99-fbturbo.conf
+    rm -f ${target_homedir}/99-fbdev.conf
+    rm -f ~/99-fbdev.conf
+    rm -f /etc/modprobe.d/re4son.conf
+    sed -i 's/rootwait fbcon=map:10 fbcon=font:VGA8x8/rootwait/g' "/boot/cmdline.txt"
+    sed -i 's/BLANK_TIME=0/BLANK_TIME=10/g' "/etc/kbd/config"
+    sed -i '/added by smraza-pitft-setup/,/end smraza-pitft-setup/d' "/boot/config.txt"
+    sed -i '/added by smraza-pi-tft-setup/,/end smraza-pitft-setup/d' "/etc/modules"
+    sed -i '/added by smraza-pi-tft-setup/,/end smraza-pitft-setup/d' "${target_homedir}/.profile"
+    info HDMI "Switch success!"
+    echo
+    read -p "Reboot to apply changes? (y/n): " -n 1 -r
+    echo
+
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+       reboot
+    fi
+    exit 1
+}
+
 # currently for '90' rotation only
 function update_xorg() {
     mkdir -p /etc/X11/xorg.conf.d
@@ -241,7 +211,7 @@ Section "Device"
 EndSection
 EOF
 
-    if [ "${pitfttype}" == "sma35" ]; then
+if [ "${pitfttype}" == "sma35" ]; then
         cat > /etc/X11/xorg.conf.d/99-calibration.conf <<EOF
 Section "InputClass"
 	Identifier	"calibration"
@@ -497,7 +467,8 @@ info PITFT "Success!"
 info PITFT "Notes:"
 echo "Please don't run rpi-update, or you'll have to re-install a kernel"
 echo "If you have any technical questions, please feel free to contact our support staff via email at support@smraza.com"
-echo
+echo "Modified 17 Dec. 2016"
+echo "by Keen"
 echo
 read -p "Reboot to apply changes? (y/n): " -n 1 -r
 echo
